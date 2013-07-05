@@ -11,15 +11,18 @@ use tzid;
 
 open ERR,">>/home/jimsmithkka/files/output.err";
 
-my %locations; 
+#my %locations; 
+
 my %notifications;
+my $config="./weather_config_dump";
+my $countyfile="./countycodes.csv";
 
 my $q = CGI->new;
 my $params=$q->Vars;
 my $tzid = tzid->new(sessiondir => '/home/jimsmithkka/www/tzid-sessions');
 my $user = $tzid->user();
 
-sub loadConfig  #replace with datadumper for now, later implement mysql
+sub loadConfig2  #replace with datadumper for now, later implement mysql
 {
 	open CONF, "</home/jimsmithkka/files/weather.conf";
 	while (<CONF>)
@@ -44,7 +47,49 @@ sub loadConfig  #replace with datadumper for now, later implement mysql
 	}
 	close CONF;
 }
-sub getData
+
+sub loadConfig  #replace with datadumper for now, later implement mysql
+{
+	open my $conf2,"<",$_[0] or die "cannot open file for reading\n"; 
+	my $pants;
+	{
+		undef $/;
+		$pants= <$conf2>;
+	}
+	close $conf2;
+
+	print "$pants \n";
+	my %printable=%{eval $pants};
+
+	print Dumper(\%printable);
+
+	#my %printable=%{$RBuids};
+	print "Asses\n ";
+	foreach my $sid (keys %printable)
+	{
+		print "$sid:\n";
+		foreach my $loc (keys %{$printable{$sid}})
+		{
+			print "$loc:";
+			foreach  my $num (@{$printable{$sid}->{$loc}})
+			{
+				print "$num, ";
+			}
+			print "\n";
+		}
+	}
+	return \%printable;
+
+}
+sub writeConfig  #replace with datadumper for now, later implement mysql
+{
+	open my $conf,">",$_[0] or die "cannot open file for writing\n";
+	$Data::Dumper::Terse=1; #strip VAR1 from the dumped data
+	print $conf Dumper($_[1]);
+	close $conf;
+}
+
+sub getData					#connects to national weather servcie and grabs their data
 {
 	my %responses;
 	my $LP_RSS="http://alerts.weather.gov/cap/wwaatmget.php?x=$_[0]";
@@ -138,11 +183,39 @@ sub picard
 	}	
 	close $wconf;
 }
+
+sub loadCounties
+{
+	my %locations;
+	open $county,"<",$countyfile;
+	foreach my $line (<$county>)
+	{
+		@liner=split(/\,/,$line);
+		$location{$liner[3] . $liner[4] . $liner[5]}=$liner[1] .  ", " . $liner[3];
+	}
+	return \%locations;
+}
+sub locationList
+{
+	my %ids=%{$_[0]};
+	my %locs;
+	my $codes=loadCounties;
+	
+	foreach my $id (keys %ids)
+	{
+		foreach my $loc (keys %{$ids{$id}})
+		{
+			$locs{$codes->{$loc}}=$loc;
+		}
+	}
+	return \%locs;
+}
 sub main
 {	
-	print ERR ":Reading config file:";
-	loadConfig;
-	print ERR ":End config file:";
+	print ERR ":Reading config files:";
+	my %ids=%{loadConfig($config)};			#load user IDs, locations, and contacts
+	my %locations=locationList(\%ids);		#map County, State to County codes for only the codes found in config (not all 3k us counties)
+	print ERR ":End config files:";
 	
 	print $q->header(-type  =>  'text/html');
 	print $q->start_html(-title=>'Weather Warning 2.0', -style=>{-media => 'all'});	# start the HTML
@@ -161,6 +234,7 @@ sub main
 			print ERR ":End Adding:";
 		}		
 	}
+
 
 	foreach my $local (sort (keys %locations))
 	{
