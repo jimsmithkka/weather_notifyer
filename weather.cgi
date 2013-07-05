@@ -19,7 +19,7 @@ my $params=$q->Vars;
 my $tzid = tzid->new(sessiondir => '/home/jimsmithkka/www/tzid-sessions');
 my $user = $tzid->user();
 
-sub loadConfig
+sub loadConfig  #replace with datadumper for now, later implement mysql
 {
 	open CONF, "</home/jimsmithkka/files/weather.conf";
 	while (<CONF>)
