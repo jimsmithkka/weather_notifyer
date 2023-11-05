@@ -1,0 +1,23 @@
+---
+shared:
+  environment:
+    GREETING="Hello"
+  # Docker image to use as the desired build container. This typically takes the
+  # form of "repo_name". Alternatively, you can define the image as
+  # "repo_name:tag_label".
+  #
+  # (Source: https://hub.docker.com/r/library/buildpack-deps/)
+  image: buildpack-deps
+jobs:
+  main:
+    requires: [~pr, ~commit]
+    steps:
+      - export: export LOCATION="world"
+      - hello: echo "$GREETING, $LOCATION!"
+      - set-metadata: meta set example.coverage 99.95
+  second_job:
+    requires: main
+    steps:
+  #     - make_target: make greetings
+  #     # You can get metadata that was set using the command "meta get <key>".
+      - get-metadata: meta get example
